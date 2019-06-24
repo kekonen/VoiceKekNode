@@ -1,0 +1,15 @@
+{
+  "name": "voicekekbot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ship-hold": "^2.0.1",
+    "telegraf": "^3.30.1"
+  }
+}
