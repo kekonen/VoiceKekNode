@@ -141,7 +141,7 @@ class Bot {
 
                 }
             }
-            ctx.reply('text')
+            // ctx.reply('text')
         })
 
         this.bot.on('inline_query', async (ctx) => {
