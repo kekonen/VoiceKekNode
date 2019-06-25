@@ -180,7 +180,7 @@ class Bot {
                             })
                             console.log('-------3')
 
-                            const updatedVoice = await db.updateCachedVoice(task.content, voice.file_id, voice.file_size, Buffer.from(text, 'utf8').toString('base64'));
+                            const updatedVoice = await db.updateCachedVoice(task.content, voice.file_id, voice.file_size, text);
                             console.log('Updated voice', updatedVoice)
                             const taskFullfilled = await db.fullfillTask(task.id)
                             console.log('-------4')
@@ -229,7 +229,7 @@ class Bot {
                     type: "voice",
                     id: `voice_${id}_${v.voice_id}`,
                     voice_file_id: v.file_id_cached,
-                    title: Buffer.from(v.title, 'base64').toString('utf8') 
+                    title: v.title
                 }
             }) || []
 
