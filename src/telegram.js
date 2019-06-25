@@ -26,6 +26,12 @@ class Bot {
 
         this.bot.command('admin_me', async (ctx) => {
             const {from} = ctx.update.message;
+
+            if (!(await db.getUser(from.id)).length) {
+                ctx.reply('Register first with /start')
+                return ;
+            }
+
             if ((await db.getUserRoles(from.id)).indexOf('admin') > -1 ) {
                 ctx.reply('Да все с тобой ясно')
             } else {
@@ -38,6 +44,11 @@ class Bot {
         // this.bot.help((ctx) => ctx.reply('Send me a sticker'))
         this.bot.on('audio', async (ctx) => {
             const {audio, from} = ctx.update.message;
+
+            if (!(await db.getUser(from.id)).length) {
+                ctx.reply('Register first with /start')
+                return ;
+            }
 
             ctx.reply(`Got audio '${audio.mime_type}'`);
             const mp3_path = `./media/mp3/${audio.file_id}.mp3`;
@@ -67,7 +78,11 @@ class Bot {
 
         this.bot.on('document', async (ctx) => {
             const {document, from} = ctx.update.message;
-            console.log(document)
+
+            if (!(await db.getUser(from.id)).length) {
+                ctx.reply('Register first with /start')
+                return ;
+            }
 
             if (document.mime_type === 'audio/x-wav') {
                 ctx.reply('Got wav');
@@ -99,7 +114,12 @@ class Bot {
 
         this.bot.on('voice', async (ctx) => {
             const {voice, from} = ctx.update.message;
-            console.log('voice', voice)
+
+            if (!(await db.getUser(from.id)).length) {
+                ctx.reply('Register first with /start')
+                return ;
+            }
+
             // ctx.reply('Got audio');
             const voice_path = `./media/voices/${voice.file_id}.ogg`;
             await this.downloadFile(voice.file_id, voice_path);
@@ -127,6 +147,12 @@ class Bot {
         // this.bot.hears('hi', (ctx) => ctx.reply('Hey there'))
         this.bot.on('text', async (ctx) => {
             let {text, from} = ctx.update.message;
+
+            if (!(await db.getUser(from.id)).length) {
+                ctx.reply('Register first with /start')
+                return ;
+            }
+
             const tasks = await db.getTasks(from.id, 0);
 
             let zeroRe = /^\!z (.*)/;
@@ -173,6 +199,7 @@ class Bot {
 
         this.bot.on('inline_query', async (ctx) => {
             const {id, query, from} = ctx.update.inline_query;
+
             // console.log('query===', ctx)
 
 
@@ -206,6 +233,7 @@ class Bot {
 
         this.bot.on('chosen_inline_result', async (ctx) => {
             const {from, result_id} = ctx.update.chosen_inline_result;
+
             console.log('result_id', result_id)
             const [type, queryId, voice_id] = result_id.split('_')
             db.updateVoiceCounterById(voice_id)
