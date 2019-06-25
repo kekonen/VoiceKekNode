@@ -69,7 +69,7 @@ class Bot {
                 const voice_path = `media/voices/${audio.file_id}.ogg`;
                 await ops.smth2ogg(mp3_path, voice_path);
                 const [voice_hash, voice_size] = await ops.getHash(voice_path);
-                const [voice] = await db.createVoice(audio.file_id, voice_hash, from.id, audio.duration, voice_size, false)
+                const voice = await db.createVoice(audio.file_id, voice_hash, from.id, audio.duration, voice_size, false)
                 await db.createSource(audio.mime_type, mp3_hash, audio.file_id, mp3_size, voice.id)
                 await db.createTask(from.id, 0, 'saveTitle.mp3', voice.id)
                 ctx.reply('Plz send the name')
@@ -104,7 +104,7 @@ class Bot {
                     const voice_path = `media/voices/${document.file_id}.ogg`;
                     await ops.smth2ogg(wav_path, voice_path);
                     const [voice_hash, voice_size] = await ops.getHash(voice_path);
-                    const [voice] = await db.createVoice(document.file_id, voice_hash, from.id, document.duration, voice_size, false)
+                    const voice = await db.createVoice(document.file_id, voice_hash, from.id, document.duration, voice_size, false)
                     await db.createSource(document.mime_type, wav_hash, document.file_id, wav_size, voice.id)
                     await db.createTask(from.id, 0, 'saveTitle.wav', voice.id)
                     ctx.reply('Plz send the name')
@@ -125,7 +125,7 @@ class Bot {
             await this.downloadFile(voice.file_id, voice_path);
             const [voice_hash, voice_size] = await ops.getHash(voice_path);
             const foundSourcesByHash = await db.findSourceByHashAndMime(voice_hash, 'audio/ogg');
-
+            console.log('=======foundSourcesByHash', foundSourcesByHash)
             if (foundSourcesByHash.length) {
                 // await db.getVoiceById(foundSourcesByHash[0].voice_id);
                 const foundPerm = await db.findPermByUserAndVoiceId(from.id, foundSourcesByHash[0].voice_id)
@@ -136,9 +136,12 @@ class Bot {
                     ctx.reply('U have it already!')
                 }
             } else {
-                const [newVoice] = await db.createVoice(voice.file_id, voice_hash, from.id, voice.duration, voice_size, false)
+                console.log('=====1')
+                const newVoice = await db.createVoice(voice.file_id, voice_hash, from.id, voice.duration, voice_size, false)
+                console.log('=====2')
                 console.log('newVoice', newVoice)
                 await db.createSource(voice.mime_type, voice_hash, voice.file_id, voice_size, newVoice.id)
+                console.log('=====3')
                 await db.createTask(from.id, 0, 'saveTitle.voice', newVoice.id)
                 ctx.reply('Plz send the name')
             }
@@ -171,24 +174,26 @@ class Bot {
                         ctx.reply('Plz send name shorter than 40 characters')
                     } else {
                         console.log('-------1')
-                        const targetVoices = await db.getVoiceById(task.content)
-                        if (targetVoices.length) {
+                        const targetVoice = await db.getVoiceById(task.content)
+                        console.log('-------1.5', targetVoice)
+
+                        if (targetVoice) {
                             console.log('-------2')
 
                             const {voice} = await ctx.replyWithVoice({
-                                source: fs.createReadStream(`./media/voices/${targetVoices[0].file_id}.ogg`)
+                                source: fs.createReadStream(`./media/voices/${targetVoice.file_id}.ogg`)
                             })
                             console.log('-------3')
 
                             const updatedVoice = await db.updateCachedVoice(task.content, voice.file_id, voice.file_size, text);
                             console.log('Updated voice', updatedVoice)
                             const taskFullfilled = await db.fullfillTask(task.id)
-                            console.log('-------4')
+                            console.log('-------4', updatedVoice)
 
                             let from_id = from.id;
                             if (zeroRight && (await db.getUserRoles(from.id)).indexOf('admin') > -1 ) from_id = 0;
                             console.log(`Form id`, from_id, (await db.getUserRoles(from.id)))
-                            const permissionCreated = await db.createPerm(updatedVoice[0].id, from_id)
+                            const permissionCreated = await db.createPerm(task.content, from_id)
                             // const voice = updateVoiceTitle(task.content, text);
                         }
                     }
@@ -225,9 +230,10 @@ class Bot {
             // console.log(`from====`, await db.getAllowedVoicesLike(from.id, query))
             // let results = []
             const results = (await db.getAllowedVoicesLike(from.id, query)).slice(0,20).map((v, i) => {
+                console.log('v============', v.voice_permissions)
                 return {
                     type: "voice",
-                    id: `voice_${id}_${v.voice_id}`,
+                    id: `voice_${id}_${v.voice_permissions[0].voice_id}`,
                     voice_file_id: v.file_id_cached,
                     title: v.title
                 }

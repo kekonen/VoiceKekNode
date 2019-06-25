@@ -8,7 +8,9 @@ CREATE TABLE voices (
   duration INTEGER,
   size INTEGER,
   active BOOLEAN NOT NULL DEFAULT 'f',
-  used INTEGER NOT NULL DEFAULT 0
+  used INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 -- Your SQL goes here
@@ -19,15 +21,18 @@ CREATE TABLE tasks (
   task VARCHAR(15) NOT NULL,
   content VARCHAR(40) NOT NULL,
   fullfilled BOOLEAN NOT NULL DEFAULT 'f',
+  fullfilled_at TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  fullfilled_at TIMESTAMP
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE voice_permissions (
   id SERIAL PRIMARY KEY,
   voice_id SERIAL,
   owner_chat_id INTEGER NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  FOREIGN KEY ("voice_id") REFERENCES voices(id)
 );
 
 CREATE TABLE file_source (
@@ -37,20 +42,23 @@ CREATE TABLE file_source (
   original_id VARCHAR(40) NOT NULL,
   original_size INTEGER,
   voice_id SERIAL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE kek_user (
   id SERIAL PRIMARY KEY,
   chat_id INTEGER NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE user_role (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL,
   role_name VARCHAR(10) NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 -- CREATE TABLE voices (
