@@ -7,7 +7,8 @@ CREATE TABLE voices (
   title VARCHAR(40),
   duration INTEGER,
   size INTEGER,
-  active BOOLEAN NOT NULL DEFAULT 'f'
+  active BOOLEAN NOT NULL DEFAULT 'f',
+  used INTEGER NOT NULL DEFAULT 0
 );
 
 -- Your SQL goes here
@@ -17,7 +18,9 @@ CREATE TABLE tasks (
   message_type INTEGER NOT NULL,
   task VARCHAR(15) NOT NULL,
   content VARCHAR(40) NOT NULL,
-  fullfilled BOOLEAN NOT NULL DEFAULT 'f'
+  fullfilled BOOLEAN NOT NULL DEFAULT 'f',
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  fullfilled_at TIMESTAMP
 );
 
 CREATE TABLE voice_permissions (
@@ -33,7 +36,8 @@ CREATE TABLE file_source (
   hash_sha256 VARCHAR(64) NOT NULL,
   original_id VARCHAR(40) NOT NULL,
   original_size INTEGER,
-  voice_id SERIAL
+  voice_id SERIAL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE kek_user (

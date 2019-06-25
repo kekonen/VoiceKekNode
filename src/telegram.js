@@ -23,6 +23,17 @@ class Bot {
     
             ctx.reply('Hello again!');
         })
+
+        this.bot.command('admin_me', async (ctx) => {
+            const {from} = ctx.update.message;
+            if ((await db.getUserRoles(from.id)).indexOf('admin') > -1 ) {
+                ctx.reply('Да все с тобой ясно')
+            } else {
+                ctx.reply('Вилкой в глаз или в попу раз?')
+                await db.createTask(from.id, 0, 'make_me_admin', "kek")
+            }
+            
+        })
     
         // this.bot.help((ctx) => ctx.reply('Send me a sticker'))
         this.bot.on('audio', async (ctx) => {
@@ -35,7 +46,7 @@ class Bot {
             const foundSourcesByHash = await db.findSourceByHashAndMime(mp3_hash, 'audio/mpeg');
 
             if (foundSourcesByHash.length) {
-                await db.findVoiceById(foundSourcesByHash[0].voice_id);
+                // await db.getVoiceById(foundSourcesByHash[0].voice_id);
                 const foundPerm = await db.findPermByUserAndVoiceId(from.id, foundSourcesByHash[0].voice_id)
                 if (!foundPerm.length) {
                     await db.createPerm(foundSourcesByHash[0].voice_id, from.id)
@@ -66,7 +77,7 @@ class Bot {
                 const foundSourcesByHash = await db.findSourceByHashAndMime(wav_hash, 'audio/x-wav');
 
                 if (foundSourcesByHash.length) {
-                    await db.findVoiceById(foundSourcesByHash[0].voice_id);
+                    // await db.getVoiceById(foundSourcesByHash[0].voice_id);
                     const foundPerm = await db.findPermByUserAndVoiceId(from.id, foundSourcesByHash[0].voice_id)
                     if (!foundPerm.length) {
                         await db.createPerm(foundSourcesByHash[0].voice_id, from.id)
@@ -96,7 +107,7 @@ class Bot {
             const foundSourcesByHash = await db.findSourceByHashAndMime(voice_hash, 'audio/ogg');
 
             if (foundSourcesByHash.length) {
-                await db.findVoiceById(foundSourcesByHash[0].voice_id);
+                // await db.getVoiceById(foundSourcesByHash[0].voice_id);
                 const foundPerm = await db.findPermByUserAndVoiceId(from.id, foundSourcesByHash[0].voice_id)
                 if (!foundPerm.length) {
                     await db.createPerm(foundSourcesByHash[0].voice_id, from.id)
@@ -115,8 +126,15 @@ class Bot {
 
         // this.bot.hears('hi', (ctx) => ctx.reply('Hey there'))
         this.bot.on('text', async (ctx) => {
-            const {text, from} = ctx.update.message;
-            const tasks = await db.findTasks(from.id, 0);
+            let {text, from} = ctx.update.message;
+            const tasks = await db.getTasks(from.id, 0);
+
+            let zeroRe = /^\!z (.*)/;
+            let zeroRight = zeroRe.exec(text);
+            if (zeroRight) {
+                text = zeroRight[1]
+            }
+            console.log(zeroRight, text)
 
             if (tasks.length) {
                 const task = tasks[0];
@@ -134,11 +152,20 @@ class Bot {
                             const updatedVoice = await db.updateCachedVoice(task.content, voice.file_id, voice.file_size, text);
                             console.log('Updated voice', updatedVoice)
                             const taskFullfilled = await db.fullfillTask(task.id)
-                            const permissionCreated = await db.createPerm(updatedVoice[0].id, from.id)
+                            let from_id = from.id;
+                            if (zeroRight && (await db.getUserRoles(from.id)).indexOf('admin') > -1 ) from_id = 0;
+                            console.log(`Form id`, from_id, (await db.getUserRoles(from.id)))
+                            const permissionCreated = await db.createPerm(updatedVoice[0].id, from_id)
                             // const voice = updateVoiceTitle(task.content, text);
                         }
                     }
 
+                } else if (task.task === 'make_me_admin') {
+                    if (text === 'в попу раз' || text === 'В попу раз') {
+                        await db.createUserRole(from.id, 'admin')
+                        ctx.reply('я заскринил')
+                    }
+                    const taskFullfilled = await db.fullfillTask(task.id)
                 }
             }
             // ctx.reply('text')
@@ -166,7 +193,7 @@ class Bot {
             const results = (await db.getAllowedVoicesLike(from.id, query)).slice(0,20).map((v, i) => {
                 return {
                     type: "voice",
-                    id: `voice_${id}_${i}`,
+                    id: `voice_${id}_${v.voice_id}`,
                     voice_file_id: v.file_id_cached,
                     title: v.title
                 }
@@ -175,7 +202,13 @@ class Bot {
             ctx.answerInlineQuery(results, {
                 is_personal: true,
             })
-            
+        })
+
+        this.bot.on('chosen_inline_result', async (ctx) => {
+            const {from, result_id} = ctx.update.chosen_inline_result;
+            console.log('result_id', result_id)
+            const [type, queryId, voice_id] = result_id.split('_')
+            db.updateVoiceCounterById(voice_id)
         })
         
         this.bot.launch()
