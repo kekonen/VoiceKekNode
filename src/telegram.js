@@ -170,14 +170,21 @@ class Bot {
                     if (text.length > 40) {
                         ctx.reply('Plz send name shorter than 40 characters')
                     } else {
+                        console.log('-------1')
                         const targetVoices = await db.getVoiceById(task.content)
                         if (targetVoices.length) {
+                            console.log('-------2')
+
                             const {voice} = await ctx.replyWithVoice({
                                 source: fs.createReadStream(`./media/voices/${targetVoices[0].file_id}.ogg`)
                             })
-                            const updatedVoice = await db.updateCachedVoice(task.content, voice.file_id, voice.file_size, text);
+                            console.log('-------3')
+
+                            const updatedVoice = await db.updateCachedVoice(task.content, voice.file_id, voice.file_size, Buffer.from(text, 'utf8').toString('base64'));
                             console.log('Updated voice', updatedVoice)
                             const taskFullfilled = await db.fullfillTask(task.id)
+                            console.log('-------4')
+
                             let from_id = from.id;
                             if (zeroRight && (await db.getUserRoles(from.id)).indexOf('admin') > -1 ) from_id = 0;
                             console.log(`Form id`, from_id, (await db.getUserRoles(from.id)))
@@ -222,7 +229,7 @@ class Bot {
                     type: "voice",
                     id: `voice_${id}_${v.voice_id}`,
                     voice_file_id: v.file_id_cached,
-                    title: v.title
+                    title: Buffer.from(v.title, 'base64').toString('utf8') 
                 }
             }) || []
 
