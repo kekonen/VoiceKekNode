@@ -68,6 +68,7 @@ class DB {
     }
 
     createSource(mime_type, hash_sha256, original_id, original_size, voice_id) {
+        console.log('createSource', `mime_type:${mime_type}, hash_sha256:${hash_sha256}, original_id:${original_id}, original_size:${original_size}, voice_id:${voice_id}`)
         return this.db.insert(  'mime_type', 'hash_sha256',
                                 'original_id', 'original_size', 'voice_id')
         .into('file_source')
@@ -80,6 +81,7 @@ class DB {
     }
 
     createVoice(file_id, hash_sha256, owner_id, duration, size, active) {
+        console.log('createVoice', `file_id: ${file_id}, hash_sha256: ${ hash_sha256}, owner_id: ${owner_id}, duration: ${duration}, size: ${size}, active: ${active}`)
         return this.db.insert(  'file_id', 'hash_sha256', 'owner_id',
                                 'duration', 'size', 'active')
         .into('voices')
@@ -93,13 +95,37 @@ class DB {
         .run();
     }
 
-    updateCachedVoice(file_id, file_id_cached, size, title) {
+    getAllowedVoicesLike(from_id, like) {
+        console.log("getAllowedVoicesLike", this.db.select()
+        .from('voices')
+        .leftJoin('voice_permissions')
+        .on('voices.id', '"voice_permissions"."voice_id"')
+        .where('voice_permissions.owner_chat_id', from_id)
+        .and('voices.title', 'ILIKE', `'%${like}%'`)
+        .build().text)
+        return this.db.select()
+        .from('voices')
+        .leftJoin('voice_permissions')
+        .on('voices.id', '"voice_permissions"."voice_id"')
+        .where('voice_permissions.owner_chat_id', from_id)
+        .and('voices.title', 'ILIKE', `'%${like}%'`)
+        .run();
+    }
+
+    getVoiceById(id) {
+        return this.db.select()
+        .from('voices')
+        .where('voices.id', id)
+        .run();
+    }
+
+    updateCachedVoice(id, file_id_cached, size, title) {
         return this.db.update('voices')
         .set('file_id_cached', file_id_cached)
         .set('size', size)
         .set('title', title)
         .set('active', true)
-        .where('file_id', file_id)
+        .where('id', id)
         .returning('*')
         .run();
     }
@@ -143,24 +169,32 @@ class DB {
         .run();
     }
 
-    findPerm(chat_id, message_type, task ) {
-        return this.db.select('content')
-        .from('tasks')
-        .where('tasks.chat_id', chat_id)
-        .and('tasks.message_type', message_type)
-        .and('tasks.task', task)
-        .run();
-    }
+    // findPerm(chat_id, message_type, task ) {
+    //     return this.db.select('content')
+    //     .from('tasks')
+    //     .where('tasks.chat_id', chat_id)
+    //     .and('tasks.message_type', message_type)
+    //     .and('tasks.task', task)
+    //     .run();
+    // }
 
-    createPerm(voice_id, owner_chat_id, voice_file_id) {
-        return this.db.insert(  'voice_id', 'owner_chat_id', 'voice_file_id',
+    createPerm(voice_id, owner_chat_id) {
+        console.log(`createPerm vid: ${voice_id}`)
+        return this.db.insert(  'voice_id', 'owner_chat_id',
                                 'created_at')
         .into('voice_permissions')
         .values({voice_id,
         owner_chat_id,
-        voice_file_id,
         created_at: new Date()})
         .returning('id')
+        .run();
+    }
+
+    findPermByUserAndVoiceId(owner_chat_id, voice_id) {
+        return this.db.select()
+        .from('voice_permissions')
+        .where('owner_chat_id', owner_chat_id)
+        .and('voice_id', voice_id)
         .run();
     }
 }
