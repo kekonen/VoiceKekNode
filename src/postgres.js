@@ -493,6 +493,18 @@ class DB {
         // .run();
     }
 
+    getVoiceByCached(file_id_cached) {
+        return this.Voices.findOne({
+            where: {
+                file_id_cached
+            }
+        })
+        // return this.db.select()
+        // .from('voices')
+        // .where('voices.id', id)
+        // .run();
+    }
+
     async updateVoiceCounterById(id) {
         const voice = await this.getVoiceById(id)
         // this.db.select('voices.used')
@@ -626,7 +638,7 @@ class DB {
         // .run();
     }
 
-    findPermByUserAndVoiceId(owner_chat_id, voice_id) {
+    getPermByUserAndVoiceId(owner_chat_id, voice_id) {
         return this.VoicePermissions.findAll({
             where: {
                 owner_chat_id,
@@ -638,6 +650,38 @@ class DB {
         // .where('owner_chat_id', owner_chat_id)
         // .and('voice_id', voice_id)
         // .run();
+    }
+
+    getPermByVoiceId(voice_id) {
+        return this.VoicePermissions.findAll({
+            where: {
+                voice_id
+            }
+        })
+    }
+
+    deletePermByVoiceId(voice_id) {
+        return this.VoicePermissions.destroy({
+            where: {
+                voice_id
+            }
+        })
+    }
+
+    getSourcesVoiceId(voice_id) {
+        return this.Sources.findOne({
+            where: {
+                voice_id
+            }
+        })
+    }
+
+    deleteSourcesVoiceId(voice_id) {
+        return this.Sources.destroy({
+            where: {
+                voice_id
+            }
+        })
     }
 }
 

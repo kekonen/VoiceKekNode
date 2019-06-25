@@ -32,4 +32,8 @@ function smth2ogg(mp3_filename, voice_filename) {
     shell.exec(`./src/utils/smth2ogg.sh ${mp3_filename} ${voice_filename}`)
 }
 
-module.exports = {getHash, smth2ogg}
+function deleteMedia(file_id) {
+    shell.exec(`rm media/*/${file_id}.*`)
+}
+
+module.exports = {getHash, smth2ogg, deleteMedia}

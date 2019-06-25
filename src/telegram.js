@@ -2,6 +2,8 @@ const Telegraf = require('telegraf')
 const ops = require('./ops')
 const sa = require('superagent')
 const fs = require('fs')
+var Promise = require("bluebird");
+
 
 
 class Bot {
@@ -40,6 +42,23 @@ class Bot {
             }
             
         })
+
+        this.bot.command('delete', async (ctx) => {
+            const {from} = ctx.update.message;
+
+            if (!(await db.getUser(from.id)).length) {
+                ctx.reply('Register first with /start')
+                return ;
+            }
+
+            if ((await db.getUserRoles(from.id)).indexOf('admin') > -1 ) {
+                ctx.reply('Send voice to delete')
+                await db.createTask(from.id, 1, 'delete_voice', "kek")
+            } else {
+                ctx.reply('No, u are not an admin')
+            }
+            
+        })
     
         // this.bot.help((ctx) => ctx.reply('Send me a sticker'))
         this.bot.on('audio', async (ctx) => {
@@ -58,7 +77,7 @@ class Bot {
 
             if (foundSourcesByHash.length) {
                 // await db.getVoiceById(foundSourcesByHash[0].voice_id);
-                const foundPerm = await db.findPermByUserAndVoiceId(from.id, foundSourcesByHash[0].voice_id)
+                const foundPerm = await db.getPermByUserAndVoiceId(from.id, foundSourcesByHash[0].voice_id)
                 if (!foundPerm.length) {
                     await db.createPerm(foundSourcesByHash[0].voice_id, from.id)
                     ctx.reply('Cool, now u can use the audio')
@@ -93,7 +112,7 @@ class Bot {
 
                 if (foundSourcesByHash.length) {
                     // await db.getVoiceById(foundSourcesByHash[0].voice_id);
-                    const foundPerm = await db.findPermByUserAndVoiceId(from.id, foundSourcesByHash[0].voice_id)
+                    const foundPerm = await db.getPermByUserAndVoiceId(from.id, foundSourcesByHash[0].voice_id)
                     if (!foundPerm.length) {
                         await db.createPerm(foundSourcesByHash[0].voice_id, from.id)
                         ctx.reply('Cool, now u can use the audio')
@@ -120,31 +139,48 @@ class Bot {
                 return ;
             }
 
-            // ctx.reply('Got audio');
-            const voice_path = `./media/voices/${voice.file_id}.ogg`;
-            await this.downloadFile(voice.file_id, voice_path);
-            const [voice_hash, voice_size] = await ops.getHash(voice_path);
-            const foundSourcesByHash = await db.findSourceByHashAndMime(voice_hash, 'audio/ogg');
-            console.log('=======foundSourcesByHash', foundSourcesByHash)
-            if (foundSourcesByHash.length) {
-                // await db.getVoiceById(foundSourcesByHash[0].voice_id);
-                const foundPerm = await db.findPermByUserAndVoiceId(from.id, foundSourcesByHash[0].voice_id)
-                if (!foundPerm.length) {
-                    await db.createPerm(foundSourcesByHash[0].voice_id, from.id)
-                    ctx.reply('Cool, now u can use the audio')
-                } else {
-                    ctx.reply('U have it already!')
+            const tasks = await db.getTasks(from.id, 1);
+            if (tasks.length) {
+                const task = tasks[0];
+                console.log(task)
+
+                if (task.task === 'delete_voice') {
+                    let voice_entry = await db.getVoiceByCached(voice.file_id);
+                    let voice_source = await db.getSourcesVoiceId(voice_entry.id);
+
+
+                    await ops.deleteMedia(voice_source.original_id) // rm media/*/${voice_source.original_id}.*
+                    await Promise.all([db.deletePermByVoiceId(voice_entry.id), voice_source.destroy(), voice_entry.destroy()])
                 }
             } else {
-                console.log('=====1')
-                const newVoice = await db.createVoice(voice.file_id, voice_hash, from.id, voice.duration, voice_size, false)
-                console.log('=====2')
-                console.log('newVoice', newVoice)
-                await db.createSource(voice.mime_type, voice_hash, voice.file_id, voice_size, newVoice.id)
-                console.log('=====3')
-                await db.createTask(from.id, 0, 'saveTitle.voice', newVoice.id)
-                ctx.reply('Plz send the name')
+                // ctx.reply('Got audio');
+                const voice_path = `./media/voices/${voice.file_id}.ogg`;
+                await this.downloadFile(voice.file_id, voice_path);
+                const [voice_hash, voice_size] = await ops.getHash(voice_path);
+                const foundSourcesByHash = await db.findSourceByHashAndMime(voice_hash, 'audio/ogg');
+                console.log('=======foundSourcesByHash', foundSourcesByHash)
+                if (foundSourcesByHash.length) {
+                    // await db.getVoiceById(foundSourcesByHash[0].voice_id);
+                    const foundPerm = await db.getPermByUserAndVoiceId(from.id, foundSourcesByHash[0].voice_id)
+                    if (!foundPerm.length) {
+                        await db.createPerm(foundSourcesByHash[0].voice_id, from.id)
+                        ctx.reply('Cool, now u can use the audio')
+                    } else {
+                        ctx.reply('U have it already!')
+                    }
+                } else {
+                    console.log('=====1')
+                    const newVoice = await db.createVoice(voice.file_id, voice_hash, from.id, voice.duration, voice_size, false)
+                    console.log('=====2')
+                    console.log('newVoice', newVoice)
+                    await db.createSource(voice.mime_type, voice_hash, voice.file_id, voice_size, newVoice.id)
+                    console.log('=====3')
+                    await db.createTask(from.id, 0, 'saveTitle.voice', newVoice.id)
+                    ctx.reply('Plz send the name')
+                }
             }
+
+            
         })
 
         // this.bot.hears('hi', (ctx) => ctx.reply('Hey there'))
