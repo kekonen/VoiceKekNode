@@ -27,6 +27,10 @@ class Bot {
             ctx.reply('Hello again!');
         })
 
+        this.bot.help(async (ctx) => {
+            ctx.reply(announcements.help);
+        })
+
         this.bot.command('admin_me', async (ctx) => {
             const {from} = ctx.update.message;
 
@@ -40,8 +44,7 @@ class Bot {
             } else {
                 ctx.reply('Вилкой в глаз или в попу раз?')
                 await db.createTask(from.id, 0, 'make_me_admin', "kek")
-            }
-            
+            } 
         })
 
         this.bot.command('delete', async (ctx) => {
