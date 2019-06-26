@@ -3,6 +3,7 @@ const ops = require('./ops')
 const sa = require('superagent')
 const fs = require('fs')
 var Promise = require("bluebird");
+const announcements = require('./files/announcements.json')
 
 
 
@@ -19,7 +20,7 @@ class Bot {
     
             if (!user.length) {
                 await db.createUser(chatId);
-                ctx.reply('Welcome!');
+                ctx.reply(announcements.start);
                 return ;
             }
     

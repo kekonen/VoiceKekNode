@@ -456,7 +456,8 @@ class DB {
             where: {
                 title: {
                     [Op.iLike]: `%${like}%`
-                }
+                },
+                active: true
             },
             include: [
                 {
