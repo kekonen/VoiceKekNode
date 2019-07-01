@@ -14,12 +14,11 @@ class Bot {
 
     async setup(db) {
         this.bot.start(async (ctx) => {
-            const chatId = (await ctx.getChat()).id;
+            const {from} = ctx.update.message;
     
-            const user = await db.getUser(chatId);
-    
-            if (!user.length) {
-                await db.createUser(chatId);
+            if (!(await db.isHe(from.id, 'user'))) {
+                if (!(await db.getUser(from.id))) await db.createUser(from.id);
+                await db.createUserRole(from.id, 'user')
                 ctx.reply(announcements.start);
                 return ;
             }
@@ -34,12 +33,12 @@ class Bot {
         this.bot.command('admin_me', async (ctx) => {
             const {from} = ctx.update.message;
 
-            if (!(await db.getUser(from.id)).length) {
+            if (!(await db.isHe(from.id, 'user'))) {
                 ctx.reply('Register first with /start')
                 return ;
             }
 
-            if ((await db.getUserRoles(from.id)).indexOf('admin') > -1 ) {
+            if (await db.isHe(from.id, 'admin')) {
                 ctx.reply('Да все с тобой ясно')
             } else {
                 ctx.reply('Вилкой в глаз или в попу раз?')
@@ -50,12 +49,12 @@ class Bot {
         this.bot.command('delete', async (ctx) => {
             const {from} = ctx.update.message;
 
-            if (!(await db.getUser(from.id)).length) {
+            if (!(await db.isHe(from.id, 'user'))) {
                 ctx.reply('Register first with /start')
                 return ;
             }
 
-            if ((await db.getUserRoles(from.id)).indexOf('admin') > -1 ) {
+            if (await db.isHe(from.id, 'admin')) {
                 ctx.reply('Send voice to delete')
                 await db.createTask(from.id, 1, 'delete_voice', "kek")
             } else {
@@ -68,7 +67,7 @@ class Bot {
         this.bot.on('audio', async (ctx) => {
             const {audio, from} = ctx.update.message;
 
-            if (!(await db.getUser(from.id)).length) {
+            if (!(await db.isHe(from.id, 'user'))) {
                 ctx.reply('Register first with /start')
                 return ;
             }
@@ -102,7 +101,7 @@ class Bot {
         this.bot.on('document', async (ctx) => {
             const {document, from} = ctx.update.message;
 
-            if (!(await db.getUser(from.id)).length) {
+            if (!(await db.isHe(from.id, 'user'))) {
                 ctx.reply('Register first with /start')
                 return ;
             }
@@ -138,7 +137,7 @@ class Bot {
         this.bot.on('voice', async (ctx) => {
             const {voice, from} = ctx.update.message;
 
-            if (!(await db.getUser(from.id)).length) {
+            if (!(await db.isHe(from.id, 'user'))) {
                 ctx.reply('Register first with /start')
                 return ;
             }
@@ -191,7 +190,7 @@ class Bot {
         this.bot.on('text', async (ctx) => {
             let {text, from} = ctx.update.message;
 
-            if (!(await db.getUser(from.id)).length) {
+            if (!(await db.isHe(from.id, 'user'))) {
                 ctx.reply('Register first with /start')
                 return ;
             }
@@ -253,24 +252,22 @@ class Bot {
             const {id, query, from} = ctx.update.inline_query;
 
             // console.log('query===', ctx)
-
-
-            const user = await db.getUser(from.id);
-            console.log('user', user)
-            if (!user.length) {
+            
+            if (!(await db.getUser(from.id))) {
                 console.log('No user!')
-                ctx.answerInlineQuery([], {
-                    is_personal: true,
-                    switch_pm_text: "Hey, click here",
-                    switch_pm_parameter: "new"
-                })
-                return ;
+                await db.createUser(from.id, {queries: 0});
+                // ctx.answerInlineQuery([], {
+                //     is_personal: true,
+                //     switch_pm_text: "Hey, click here",
+                //     switch_pm_parameter: "new"
+                // })
+                // return ;
             }
 
             // console.log(`from====`, await db.getAllowedVoicesLike(from.id, query))
             // let results = []
             const results = (await db.getAllowedVoicesLike(from.id, query)).slice(0,20).map((v, i) => {
-                console.log('v============', v.voice_permissions)
+                // console.log('v============', v.voice_permissions)
                 return {
                     type: "voice",
                     id: `voice_${id}_${v.voice_permissions[0].voice_id}`,
@@ -286,6 +283,9 @@ class Bot {
 
         this.bot.on('chosen_inline_result', async (ctx) => {
             const {from, result_id} = ctx.update.chosen_inline_result;
+
+            const user = await db.getUser(from.id);
+            user.update({queries: user.queries + 1})
 
             console.log('result_id', result_id)
             const [type, queryId, voice_id] = result_id.split('_')
