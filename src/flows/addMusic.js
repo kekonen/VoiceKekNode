@@ -1,5 +1,12 @@
+
+const fs = require('fs')
+var Promise = require("bluebird");
+const ops = require('../ops')
+
+
 class AddMusic {
-    constructor() {
+    constructor(ctx) {
+        ctx.user.flow = this
         this.toAdd = []
         // ctx.reply('Hi, whats next?')
     
@@ -30,16 +37,16 @@ class AddMusic {
         ctx.reply(`Got audio '${inpt.mime_type}'`);
         const extension = inpt.mime_type === 'audio/x-wav' ? 'wav' : 'mp3'
         const inpt_path = `./media/${extension}/${inpt.file_id}.${extension}`;
-        await this.downloadFile(inpt.file_id, inpt_path);
+        await ctx.bot.downloadFile(inpt.file_id, inpt_path);
         const [inpt_hash, inpt_size] = await ops.getHash(inpt_path);
         const foundSourceByHash = await ctx.db.findSourceByHashAndMime(inpt_hash, inpt.mime_type);
 
         if (foundSourceByHash) {
             // await ctx.db.getVoiceById(foundSourcesByHash.voice_id);
-            const foundPerm = await ctx.db.getPermByUserAndVoiceId(from.id, foundSourcesByHash.voice_id)
+            const foundPerm = await ctx.db.getPermByUserAndVoiceId(from.id, foundSourceByHash.voice_id)
             if (!foundPerm.length) {
-                await ctx.db.createPerm(foundSourcesByHash.voice_id, from.id)
-                const existingVoice = await ctx.db.getVoiceById(foundSourcesByHash.voice_id)
+                await ctx.db.createPerm(foundSourceByHash.voice_id, from.id)
+                const existingVoice = await ctx.db.getVoiceById(foundSourceByHash.voice_id)
                 ctx.reply(`Cool, now u can use the voice: '${existingVoice.title}'`)
             } else {
                 ctx.reply('U have it already!')
@@ -68,7 +75,7 @@ class AddMusic {
             ctx.reply('Plz send the name')
         }
     
-        return false
+        return true
     }
 
     async addName(ctx) {
@@ -107,7 +114,7 @@ class AddMusic {
                 let from_id = from.id;
                 if (zeroRight && (await ctx.db.getUserRoles(from.id)).indexOf('admin') > -1 ) from_id = 0;
                 console.log(`Form id`, from_id, (await ctx.db.getUserRoles(from.id)))
-                const permissionCreated = await ctx.db.createPerm(task.content, from_id)
+                const permissionCreated = await ctx.db.createPerm(targetVoice.id, from_id)
                 this.exit(ctx)
                 // const voice = updateVoiceTitle(task.content, text);
             }

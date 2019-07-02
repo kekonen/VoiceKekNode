@@ -1,5 +1,8 @@
+const fs = require('fs')
+
 class Voice {
-    constructor() {
+    constructor(ctx) {
+        ctx.user.flow = this
         // ctx.reply('Hi, whats next?')
     
         // this.next = (ctx) => {
@@ -34,9 +37,7 @@ class Voice {
             await this.downloadFile(voice.file_id, voice_path);
             const [voice_hash, voice_size] = await ops.getHash(voice_path);
             const foundSourceByHash = await ctx.db.findSourceByHashAndMime(voice_hash, 'audio/ogg');
-            console.log('=======foundSourceByHash', foundSourceByHash)
             if (foundSourceByHash) {
-                // await ctx.db.getVoiceById(foundSourcesByHash[0].voice_id);
                 const foundPerm = await ctx.db.getPermByUserAndVoiceId(from.id, foundSourceByHash.voice_id)
                 if (!foundPerm.length) {
                     await ctx.db.createPerm(foundSourceByHash.voice_id, from.id)
@@ -46,12 +47,8 @@ class Voice {
                     ctx.reply('U have it already!')
                 }
             } else {
-                console.log('=====1')
                 const newVoice = await ctx.db.createVoice(voice.file_id, voice_hash, from.id, voice.duration, voice_size, false)
-                console.log('=====2')
-                console.log('newVoice', newVoice)
                 await ctx.db.createSource(voice.mime_type, voice_hash, voice.file_id, voice_size, newVoice.id)
-                console.log('=====3')
                 this.targetVoice = newVoice;
                 this.next = async (ctx) => {
                     if (ctx.text) {
@@ -66,7 +63,6 @@ class Voice {
                     // }
                     return false
                 }
-                await ctx.db.createTask(from.id, 0, 'saveTitle.voice', newVoice.id)
                 ctx.reply('Plz send the name')
             }
         }
@@ -128,12 +124,24 @@ class Voice {
                 let from_id = from.id;
                 if (zeroRight && (await ctx.db.getUserRoles(from.id)).indexOf('admin') > -1 ) from_id = 0;
                 console.log(`Form id`, from_id, (await ctx.db.getUserRoles(from.id)))
-                const permissionCreated = await ctx.db.createPerm(task.content, from_id)
+                const permissionCreated = await ctx.db.createPerm(targetVoice.id, from_id)
                 this.exit(ctx)
                 // const voice = updateVoiceTitle(task.content, text);
             }
         }
     }
+
+    // this.bot.command('delete', async (ctx) => {
+    //     const {from} = ctx.update.message;
+
+    //     if (await db.isHe(from.id, 'admin')) {
+    //         ctx.reply('Send voice to delete')
+    //         await db.createTask(from.id, 1, 'delete_voice', "kek")
+    //     } else {
+    //         ctx.reply('No, u are not an admin')
+    //     }
+        
+    // })
 
     exit(ctx) {
         ctx.user.flow = null;
