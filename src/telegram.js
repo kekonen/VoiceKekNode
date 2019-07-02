@@ -76,14 +76,15 @@ class Bot {
             const mp3_path = `./media/mp3/${audio.file_id}.mp3`;
             await this.downloadFile(audio.file_id, mp3_path);
             const [mp3_hash, mp3_size] = await ops.getHash(mp3_path);
-            const foundSourcesByHash = await db.findSourceByHashAndMime(mp3_hash, 'audio/mpeg');
+            const foundSourceByHash = await db.findSourceByHashAndMime(mp3_hash, 'audio/mpeg');
 
-            if (foundSourcesByHash.length) {
-                // await db.getVoiceById(foundSourcesByHash[0].voice_id);
-                const foundPerm = await db.getPermByUserAndVoiceId(from.id, foundSourcesByHash[0].voice_id)
+            if (foundSourceByHash) {
+                // await db.getVoiceById(foundSourcesByHash.voice_id);
+                const foundPerm = await db.getPermByUserAndVoiceId(from.id, foundSourcesByHash.voice_id)
                 if (!foundPerm.length) {
-                    await db.createPerm(foundSourcesByHash[0].voice_id, from.id)
-                    ctx.reply('Cool, now u can use the audio')
+                    await db.createPerm(foundSourcesByHash.voice_id, from.id)
+                    const existingVoice = await db.getVoiceById(foundSourcesByHash.voice_id)
+                    ctx.reply(`Cool, now u can use the voice: '${existingVoice.title}'`)
                 } else {
                     ctx.reply('U have it already!')
                 }
@@ -111,14 +112,15 @@ class Bot {
                 const wav_path = `./media/wav/${document.file_id}.wav`;
                 await this.downloadFile(document.file_id, wav_path);
                 const [wav_hash, wav_size] = await ops.getHash(wav_path);
-                const foundSourcesByHash = await db.findSourceByHashAndMime(wav_hash, 'audio/x-wav');
+                const foundSourceByHash = await db.findSourceByHashAndMime(wav_hash, 'audio/x-wav');
 
-                if (foundSourcesByHash.length) {
+                if (foundSourceByHash) {
                     // await db.getVoiceById(foundSourcesByHash[0].voice_id);
-                    const foundPerm = await db.getPermByUserAndVoiceId(from.id, foundSourcesByHash[0].voice_id)
+                    const foundPerm = await db.getPermByUserAndVoiceId(from.id, foundSourcesByHash.voice_id)
                     if (!foundPerm.length) {
-                        await db.createPerm(foundSourcesByHash[0].voice_id, from.id)
-                        ctx.reply('Cool, now u can use the audio')
+                        await db.createPerm(foundSourcesByHash.voice_id, from.id)
+                        const existingVoice = await db.getVoiceById(foundSourcesByHash.voice_id)
+                        ctx.reply(`Cool, now u can use the voice: '${existingVoice.title}'`)
                     } else {
                         ctx.reply('U have it already!')
                     }
@@ -158,29 +160,42 @@ class Bot {
             } else {
                 // ctx.reply('Got audio');
                 const voice_path = `./media/voices/${voice.file_id}.ogg`;
-                await this.downloadFile(voice.file_id, voice_path);
-                const [voice_hash, voice_size] = await ops.getHash(voice_path);
-                const foundSourcesByHash = await db.findSourceByHashAndMime(voice_hash, 'audio/ogg');
-                console.log('=======foundSourcesByHash', foundSourcesByHash)
-                if (foundSourcesByHash.length) {
-                    // await db.getVoiceById(foundSourcesByHash[0].voice_id);
-                    const foundPerm = await db.getPermByUserAndVoiceId(from.id, foundSourcesByHash[0].voice_id)
+                const foundVoiceByCachedId = await db.getVoiceByCached(voice.file_id);
+                if (foundVoiceByCachedId) {
+                    const foundPerm = await db.getPermByUserAndVoiceId(from.id, foundVoiceByCachedId.id)
                     if (!foundPerm.length) {
-                        await db.createPerm(foundSourcesByHash[0].voice_id, from.id)
-                        ctx.reply('Cool, now u can use the audio')
+                        await db.createPerm(foundVoiceByCachedId.id, from.id)
+                        ctx.reply(`Cool, now u can use the voice: '${foundVoiceByCachedId.title}'`)
                     } else {
                         ctx.reply('U have it already!')
                     }
                 } else {
-                    console.log('=====1')
-                    const newVoice = await db.createVoice(voice.file_id, voice_hash, from.id, voice.duration, voice_size, false)
-                    console.log('=====2')
-                    console.log('newVoice', newVoice)
-                    await db.createSource(voice.mime_type, voice_hash, voice.file_id, voice_size, newVoice.id)
-                    console.log('=====3')
-                    await db.createTask(from.id, 0, 'saveTitle.voice', newVoice.id)
-                    ctx.reply('Plz send the name')
+                    await this.downloadFile(voice.file_id, voice_path);
+                    const [voice_hash, voice_size] = await ops.getHash(voice_path);
+                    const foundSourceByHash = await db.findSourceByHashAndMime(voice_hash, 'audio/ogg');
+                    console.log('=======foundSourceByHash', foundSourceByHash)
+                    if (foundSourceByHash) {
+                        // await db.getVoiceById(foundSourcesByHash[0].voice_id);
+                        const foundPerm = await db.getPermByUserAndVoiceId(from.id, foundSourceByHash.voice_id)
+                        if (!foundPerm.length) {
+                            await db.createPerm(foundSourceByHash.voice_id, from.id)
+                            const existingVoice = await db.getVoiceById(foundSourceByHash.voice_id)
+                            ctx.reply(`Cool, now u can use the voice: '${existingVoice.title}'`)
+                        } else {
+                            ctx.reply('U have it already!')
+                        }
+                    } else {
+                        console.log('=====1')
+                        const newVoice = await db.createVoice(voice.file_id, voice_hash, from.id, voice.duration, voice_size, false)
+                        console.log('=====2')
+                        console.log('newVoice', newVoice)
+                        await db.createSource(voice.mime_type, voice_hash, voice.file_id, voice_size, newVoice.id)
+                        console.log('=====3')
+                        await db.createTask(from.id, 0, 'saveTitle.voice', newVoice.id)
+                        ctx.reply('Plz send the name')
+                    }
                 }
+                
             }
 
             

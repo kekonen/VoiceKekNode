@@ -86,7 +86,7 @@ class DB {
     }
 
     findSourceByHashAndMime(hash_sha256, mime_type) {
-        return this.db.Sources.findAll({
+        return this.db.Sources.findOne({
             where: {
                 hash_sha256,
                 mime_type
