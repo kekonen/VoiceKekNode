@@ -4,15 +4,59 @@ const sa = require('superagent')
 const fs = require('fs')
 var Promise = require("bluebird");
 const announcements = require('./files/announcements.json')
+const AddMusic = require('./flows/addMusic')
+const Voice = require('./flows/Voice')
 
 
 
 class Bot {
     constructor(token) {
         this.bot = new Telegraf(token)
+
+        this.context = {
+            users: {}
+        }
     }
 
     async setup(db) {
+
+        this.bot.use(async (ctx, next) => {
+            const {from} = ctx.update.message;
+            console.log(ctx.updateType, ctx.updateSubTypes)
+
+            if (ctx.updateType != 'inline_query' && ctx.updateType != 'chosen_inline_result') {
+                if (!(await db.isHe(from.id, 'user'))) {
+                    ctx.reply('Register first with /start')
+                    return Promise.resolve();
+                }
+            }
+
+            ctx.removeMarkup = () => {
+                ctx.editMessageReplyMarkup({
+                    inline_keyboard: []
+                })
+            }
+
+            if (!this.context.users[from.id]) {
+                this.context.users[from.id] = from
+            }
+        
+            ctx.updateSubTypes.forEach(t => {
+                ctx[t] = ctx.update.message[t]
+            })
+        
+            ctx.user = this.context.users[from.id]
+            ctx.db = db;
+        
+            if (ctx.user.flow) {
+                if (await ctx.user.flow.next(ctx)) {
+                    return Promise.resolve()
+                }
+            } 
+        
+            return next(ctx)
+        })
+
         this.bot.start(async (ctx) => {
             const {from} = ctx.update.message;
     
@@ -33,11 +77,6 @@ class Bot {
         this.bot.command('admin_me', async (ctx) => {
             const {from} = ctx.update.message;
 
-            if (!(await db.isHe(from.id, 'user'))) {
-                ctx.reply('Register first with /start')
-                return ;
-            }
-
             if (await db.isHe(from.id, 'admin')) {
                 ctx.reply('Да все с тобой ясно')
             } else {
@@ -48,11 +87,6 @@ class Bot {
 
         this.bot.command('delete', async (ctx) => {
             const {from} = ctx.update.message;
-
-            if (!(await db.isHe(from.id, 'user'))) {
-                ctx.reply('Register first with /start')
-                return ;
-            }
 
             if (await db.isHe(from.id, 'admin')) {
                 ctx.reply('Send voice to delete')
@@ -67,136 +101,37 @@ class Bot {
         this.bot.on('audio', async (ctx) => {
             const {audio, from} = ctx.update.message;
 
-            if (!(await db.isHe(from.id, 'user'))) {
-                ctx.reply('Register first with /start')
-                return ;
-            }
+            let flow = new AddMusic()
 
-            ctx.reply(`Got audio '${audio.mime_type}'`);
-            const mp3_path = `./media/mp3/${audio.file_id}.mp3`;
-            await this.downloadFile(audio.file_id, mp3_path);
-            const [mp3_hash, mp3_size] = await ops.getHash(mp3_path);
-            const foundSourceByHash = await db.findSourceByHashAndMime(mp3_hash, 'audio/mpeg');
-
-            if (foundSourceByHash) {
-                // await db.getVoiceById(foundSourcesByHash.voice_id);
-                const foundPerm = await db.getPermByUserAndVoiceId(from.id, foundSourcesByHash.voice_id)
-                if (!foundPerm.length) {
-                    await db.createPerm(foundSourcesByHash.voice_id, from.id)
-                    const existingVoice = await db.getVoiceById(foundSourcesByHash.voice_id)
-                    ctx.reply(`Cool, now u can use the voice: '${existingVoice.title}'`)
-                } else {
-                    ctx.reply('U have it already!')
-                }
+            if (!(await flow.mp3OrDoc(ctx))) {
+                ctx.reply(`Ты мне втираешь какую то дичь`)
             } else {
-                const voice_path = `media/voices/${audio.file_id}.ogg`;
-                await ops.smth2ogg(mp3_path, voice_path);
-                const [voice_hash, voice_size] = await ops.getHash(voice_path);
-                const voice = await db.createVoice(audio.file_id, voice_hash, from.id, audio.duration, voice_size, false)
-                await db.createSource(audio.mime_type, mp3_hash, audio.file_id, mp3_size, voice.id)
-                await db.createTask(from.id, 0, 'saveTitle.mp3', voice.id)
-                ctx.reply('Plz send the name')
+                ctx.reply(`OK!!!`)
             }
         })
 
         this.bot.on('document', async (ctx) => {
             const {document, from} = ctx.update.message;
 
-            if (!(await db.isHe(from.id, 'user'))) {
-                ctx.reply('Register first with /start')
-                return ;
-            }
+            let flow = new AddMusic()
 
-            if (document.mime_type === 'audio/x-wav') {
-                ctx.reply('Got wav');
-                const wav_path = `./media/wav/${document.file_id}.wav`;
-                await this.downloadFile(document.file_id, wav_path);
-                const [wav_hash, wav_size] = await ops.getHash(wav_path);
-                const foundSourceByHash = await db.findSourceByHashAndMime(wav_hash, 'audio/x-wav');
+            ctx.user.flow = flow
 
-                if (foundSourceByHash) {
-                    // await db.getVoiceById(foundSourcesByHash[0].voice_id);
-                    const foundPerm = await db.getPermByUserAndVoiceId(from.id, foundSourcesByHash.voice_id)
-                    if (!foundPerm.length) {
-                        await db.createPerm(foundSourcesByHash.voice_id, from.id)
-                        const existingVoice = await db.getVoiceById(foundSourcesByHash.voice_id)
-                        ctx.reply(`Cool, now u can use the voice: '${existingVoice.title}'`)
-                    } else {
-                        ctx.reply('U have it already!')
-                    }
-                } else {
-                    const voice_path = `media/voices/${document.file_id}.ogg`;
-                    await ops.smth2ogg(wav_path, voice_path);
-                    const [voice_hash, voice_size] = await ops.getHash(voice_path);
-                    const voice = await db.createVoice(document.file_id, voice_hash, from.id, document.duration, voice_size, false)
-                    await db.createSource(document.mime_type, wav_hash, document.file_id, wav_size, voice.id)
-                    await db.createTask(from.id, 0, 'saveTitle.wav', voice.id)
-                    ctx.reply('Plz send the name')
-                }
+            if (!(await flow.mp3OrDoc(ctx))) {
+                ctx.reply(`Ты мне втираешь какую то дичь`)
+            } else {
+                ctx.reply(`OK!!!`)
             }
         })
 
         this.bot.on('voice', async (ctx) => {
-            const {voice, from} = ctx.update.message;
+            
 
-            if (!(await db.isHe(from.id, 'user'))) {
-                ctx.reply('Register first with /start')
-                return ;
-            }
+            let flow = new Voice();
 
-            const tasks = await db.getTasks(from.id, 1);
-            if (tasks.length) {
-                const task = tasks[0];
-                console.log(task)
+            ctx.user.flow = flow;
 
-                if (task.task === 'delete_voice') {
-                    let voice_entry = await db.getVoiceByCached(voice.file_id);
-                    let voice_source = await db.getSourcesVoiceId(voice_entry.id);
-
-
-                    await ops.deleteMedia(voice_source.original_id) // rm media/*/${voice_source.original_id}.*
-                    await Promise.all([db.deletePermByVoiceId(voice_entry.id), voice_source.destroy(), voice_entry.destroy()])
-                }
-            } else {
-                // ctx.reply('Got audio');
-                const voice_path = `./media/voices/${voice.file_id}.ogg`;
-                const foundVoiceByCachedId = await db.getVoiceByCached(voice.file_id);
-                if (foundVoiceByCachedId) {
-                    const foundPerm = await db.getPermByUserAndVoiceId(from.id, foundVoiceByCachedId.id)
-                    if (!foundPerm.length) {
-                        await db.createPerm(foundVoiceByCachedId.id, from.id)
-                        ctx.reply(`Cool, now u can use the voice: '${foundVoiceByCachedId.title}'`)
-                    } else {
-                        ctx.reply('U have it already!')
-                    }
-                } else {
-                    await this.downloadFile(voice.file_id, voice_path);
-                    const [voice_hash, voice_size] = await ops.getHash(voice_path);
-                    const foundSourceByHash = await db.findSourceByHashAndMime(voice_hash, 'audio/ogg');
-                    console.log('=======foundSourceByHash', foundSourceByHash)
-                    if (foundSourceByHash) {
-                        // await db.getVoiceById(foundSourcesByHash[0].voice_id);
-                        const foundPerm = await db.getPermByUserAndVoiceId(from.id, foundSourceByHash.voice_id)
-                        if (!foundPerm.length) {
-                            await db.createPerm(foundSourceByHash.voice_id, from.id)
-                            const existingVoice = await db.getVoiceById(foundSourceByHash.voice_id)
-                            ctx.reply(`Cool, now u can use the voice: '${existingVoice.title}'`)
-                        } else {
-                            ctx.reply('U have it already!')
-                        }
-                    } else {
-                        console.log('=====1')
-                        const newVoice = await db.createVoice(voice.file_id, voice_hash, from.id, voice.duration, voice_size, false)
-                        console.log('=====2')
-                        console.log('newVoice', newVoice)
-                        await db.createSource(voice.mime_type, voice_hash, voice.file_id, voice_size, newVoice.id)
-                        console.log('=====3')
-                        await db.createTask(from.id, 0, 'saveTitle.voice', newVoice.id)
-                        ctx.reply('Plz send the name')
-                    }
-                }
-                
-            }
+            flow.init(ctx)
 
             
         })
@@ -204,11 +139,6 @@ class Bot {
         // this.bot.hears('hi', (ctx) => ctx.reply('Hey there'))
         this.bot.on('text', async (ctx) => {
             let {text, from} = ctx.update.message;
-
-            if (!(await db.isHe(from.id, 'user'))) {
-                ctx.reply('Register first with /start')
-                return ;
-            }
 
             const tasks = await db.getTasks(from.id, 0);
 
@@ -252,7 +182,7 @@ class Bot {
                         }
                     }
 
-                } else if (task.task === 'make_me_admin') {
+                } xxxxxxelse if (task.task === 'make_me_admin') {
                     if (text === 'в попу раз' || text === 'В попу раз') {
                         await db.createUserRole(from.id, 'admin')
                         ctx.reply('я заскринил')
