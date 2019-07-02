@@ -266,7 +266,7 @@ class DB {
                 fullfilled
             },
             order: [
-                ['created_at', 'DESC'],
+                ['created_at', 'ASC'], // DESC
             ],
         })
         // this.db.select('id', 'task', 'content')
