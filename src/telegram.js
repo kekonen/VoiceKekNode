@@ -6,6 +6,7 @@ const announcements = require('./files/announcements.json')
 const AddMusic = require('./flows/addMusic')
 const Voice = require('./flows/Voice')
 const AdminMe = require('./flows/adminMe')
+const CBQVoiceflow = require('./flows/cbqVoice')
 
 
 
@@ -21,9 +22,7 @@ class Bot {
     async setup(db) {
 
         this.bot.use(async (ctx, next) => {
-            console.log(`lol0`)
-
-            const {from} = ctx.update.message  || ctx.update.inline_query || ctx.update.chosen_inline_result;
+            const {from} = ctx.update.message  || ctx.update.inline_query || ctx.update.chosen_inline_result || ctx.update.callback_query;
 
             console.log(ctx.updateType, ctx.updateSubTypes)
             ctx.db = db;
@@ -34,8 +33,6 @@ class Bot {
                     ctx.reply('Register first with /start')
                     return Promise.resolve();
                 }
-
-                
             }
 
             ctx.removeMarkup = () => {
@@ -45,7 +42,7 @@ class Bot {
             }
 
             if (!this.context.users[from.id]) {
-                this.context.users[from.id] = from
+                this.context.users[from.id] = Object.assign(from, {cbqueries: {}})
             }
         
             ctx.updateSubTypes.forEach(t => {
@@ -56,6 +53,12 @@ class Bot {
             
             if (ctx.user.flow) {
                 if (await ctx.user.flow.next(ctx)) {
+                    return Promise.resolve()
+                }
+            } 
+
+            if (ctx.update.callback_query && ctx.user.cbqueries[ctx.update.callback_query.message.message_id]) {
+                if (await ctx.user.cbqueries[ctx.update.callback_query.message.message_id].next(ctx)) {
                     return Promise.resolve()
                 }
             } 
