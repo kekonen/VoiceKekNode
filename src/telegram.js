@@ -24,12 +24,10 @@ class Bot {
             console.log(`lol0`)
 
             const {from} = ctx.update.message  || ctx.update.inline_query || ctx.update.chosen_inline_result;
-            
 
             console.log(ctx.updateType, ctx.updateSubTypes)
             ctx.db = db;
             ctx.bot = this;
-            // console.log(ctx)
 
             if (ctx.updateType != 'inline_query' && ctx.updateType != 'chosen_inline_result') {
                 if (!ctx.update.message.text === '/start' && (await db.isHe(ctx.update.message.from.id, 'user'))) {
@@ -115,8 +113,6 @@ class Bot {
             const flow = new AddMusic(ctx)
             if (!(await flow.init(ctx))) {
                 ctx.reply(`Ты мне втираешь какую то дичь`)
-            } else {
-                // ctx.reply(`OK!!!`)
             }
         })
 
@@ -125,27 +121,18 @@ class Bot {
             flow.init(ctx)
         })
 
-        // this.bot.hears('hi', (ctx) => ctx.reply('Hey there'))
         this.bot.on('text', async (ctx) => {
             let {text, from} = ctx.update.message;
 
-            
             ctx.reply('Void')
         })
 
         this.bot.on('inline_query', async (ctx) => {
             const {id, query, from} = ctx.update.inline_query;
 
-            // console.log('query===', ctx)
-            
             if (!(await db.getUser(from.id))) {
                 console.log('No user!')
                 await db.createUser(from.id, {queries: 0});
-                // ctx.answerInlineQuery([], {
-                //     is_personal: true,
-                //     switch_pm_text: "Hey, click here",
-                //     switch_pm_parameter: "new"
-                // })
             }
 
             const results = (await db.getAllowedVoicesLike(from.id, query)).slice(0,20).map((v, i) => {
