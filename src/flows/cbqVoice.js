@@ -72,10 +72,11 @@ class CBQVoiceflow {
             foundVoiceByCachedId = await ctx.db.getVoiceByCached(voice.file_id);
             
             if (foundVoiceByCachedId) {
-                this.isPublic = await ctx.db.isPublic(foundVoiceByCachedId.id)
-                console.log(`Found Voice By Cached Id; is Public====>`, this.isPublic)
-                
                 this.voice = foundVoiceByCachedId; // added voice
+
+                this.isPublic = await ctx.db.isPublic(this.voice.id)
+                console.log(`Found Voice By Cached Id; is Public====>`, this.isPublic)
+                if (this.voice.owner_id === ctx.user.id) this.owner = true
     
                 const foundPerm = await ctx.db.getPermByUserAndVoiceId(from.id, foundVoiceByCachedId.id)
                 if (foundPerm.length) {
@@ -98,6 +99,7 @@ class CBQVoiceflow {
                         console.log(`FoundPerm; ====>`)
 
                         this.voice = await ctx.db.getVoiceById(foundSourceByHash.voice_id)
+                        
                         this.inLibrary = true
                     } else {
                         console.log(`Not FoundPerm; ====>`)
