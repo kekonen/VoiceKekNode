@@ -28,7 +28,7 @@ class Bot {
             ctx.db = db;
             ctx.bot = this;
 
-            if (ctx.updateType != 'inline_query' && ctx.updateType != 'chosen_inline_result') {
+            if (ctx.updateType != 'inline_query' && ctx.updateType != 'chosen_inline_result' && ctx.updateType != 'callback_query') {
                 if (!ctx.update.message.text === '/start' && (await db.isHe(ctx.update.message.from.id, 'user'))) {
                     ctx.reply('Register first with /start')
                     return Promise.resolve();
@@ -58,7 +58,7 @@ class Bot {
             } 
 
             if (ctx.update.callback_query && ctx.user.cbqueries[ctx.update.callback_query.message.message_id]) {
-                if (await ctx.user.cbqueries[ctx.update.callback_query.message.message_id].next(ctx)) {
+                if (await ctx.user.cbqueries[ctx.update.callback_query.message.message_id].next(Object.assign(ctx, {cbqflow: ctx.user.cbqueries[ctx.update.callback_query.message.message_id]}))) {
                     return Promise.resolve()
                 }
             } 
@@ -105,7 +105,7 @@ class Bot {
         })
     
         this.bot.on('audio', async (ctx) => {
-            const flow = new AddMusic(ctx)
+            const flow = new CBQVoiceflow(ctx)
             if (!(await flow.init(ctx))) {
                 ctx.reply(`Ты мне втираешь какую то дичь`)
             } else {
@@ -113,15 +113,17 @@ class Bot {
         })
 
         this.bot.on('document', async (ctx) => {
-            const flow = new AddMusic(ctx)
+            const flow = new CBQVoiceflow(ctx)
             if (!(await flow.init(ctx))) {
                 ctx.reply(`Ты мне втираешь какую то дичь`)
             }
         })
 
         this.bot.on('voice', async (ctx) => {
-            const flow = new Voice(ctx)
-            flow.init(ctx)
+            const flow = new CBQVoiceflow(ctx)
+            if (!(await flow.init(ctx))) {
+                ctx.reply(`Ты мне втираешь какую то дичь`)
+            }
         })
 
         this.bot.on('text', async (ctx) => {

@@ -371,6 +371,15 @@ class DB {
         })
     }
 
+    deletePermByVoiceAndUserId(voice_id, owner_chat_id) {
+        return this.db.VoicePermissions.destroy({
+            where: {
+                voice_id,
+                owner_chat_id
+            }
+        })
+    }
+
     getSourcesVoiceId(voice_id) {
         return this.db.Sources.findOne({
             where: {
