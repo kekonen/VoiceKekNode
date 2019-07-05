@@ -146,7 +146,7 @@ class CBQVoiceflow {
                                     const {message_id, voice} = await ctx.replyWithVoice({
                                         source: fs.createReadStream(voice_path),
                                     }, {
-                                        caption: ctx.text || "LOL?",
+                                        caption: `${ctx.text}${this.admin? `, id: ${this.voice.id}`: ''}` || "LOL?",
                                         reply_markup: this.generateReplyMarkup()
                                     })
                                     this.message_id = message_id
@@ -158,7 +158,7 @@ class CBQVoiceflow {
                                 
                             } 
                             // TODO: handle multiple
-                            return false
+                            return true
                         }
                     }
                     
@@ -235,7 +235,7 @@ class CBQVoiceflow {
                                     const {message_id, voice} = await ctx.replyWithVoice({
                                         source: fs.createReadStream(voice_path),
                                     }, {
-                                        caption: ctx.text || "LOL?",
+                                        caption: `${ctx.text}${this.admin? `, id: ${this.voice.id}`: ''}` || "LOL?",
                                         reply_markup: this.generateReplyMarkup()
                                     })
                                     this.message_id = message_id
@@ -248,7 +248,7 @@ class CBQVoiceflow {
                                 // console.log()
                             } 
                             // TODO: handle multiple
-                            return false
+                            return true
                         }
                     }
 
@@ -265,7 +265,7 @@ class CBQVoiceflow {
         
 
         const cbq = await ctx.replyWithVoice(this.voice.file_id_cached, {
-            caption: this.voice.title,
+            caption: `${this.voice.title}${this.admin? `, id: ${this.voice.id}`: ''}`,
             reply_markup: this.generateReplyMarkup()
         })
         ctx.user.cbqueries[cbq.message_id] = this
@@ -360,12 +360,12 @@ class CBQVoiceflow {
                     if (ctx.text) {
                         await this.addName(ctx)
                         console.log('TEXT===>', ctx.text)
-                        this.ctx.editMessageCaption(ctx.text, {reply_markup: this.generateReplyMarkup()})
+                        this.ctx.editMessageCaption(`${ctx.text}${this.admin? `, id: ${this.voice.id}`: ''}`, {reply_markup: this.generateReplyMarkup()})
                         ctx.user.cbqueries[message_id] = this
                         this.next = this.processUpdate
                     } 
                     // TODO: handle multiple
-                    return false
+                    return true
                 }
             }
             await ctx.answerCbQuery()
@@ -376,11 +376,12 @@ class CBQVoiceflow {
             // return true
         } else if (data.startsWith('delete')) {
             let voice_entry = await ctx.db.getVoiceByCached(this.voice.file_id);
-            let voice_source = await ctx.db.getSourcesVoiceId(voice_entry.id);
-
-
-            await ops.deleteMedia(voice_source.original_id) // rm media/*/${voice_source.original_id}.*
-            await Promise.all([ctx.db.deletePermByVoiceId(voice_entry.id), voice_source.destroy(), voice_entry.destroy()])
+            if (voice_entry) {
+                let voice_source = await ctx.db.getSourcesVoiceId(voice_entry.id);
+                await ops.deleteMedia(voice_source.original_id) // rm media/*/${voice_source.original_id}.*
+                await Promise.all([ctx.db.deletePermByVoiceId(voice_entry.id), voice_source.destroy(), voice_entry.destroy()])
+            }
+            
             await ctx.deleteMessage(this.message_id)
             this.exit()
             await ctx.answerCbQuery()
@@ -391,7 +392,7 @@ class CBQVoiceflow {
 
         this.next = this.processUpdate
         console.log( {reply_markup: this.generateReplyMarkup()})
-        await this.ctx.editMessageCaption(this.voice.title, {reply_markup: this.generateReplyMarkup()})
+        await this.ctx.editMessageCaption(`${this.voice.title}${this.admin? `, id: ${this.voice.id}`: ''}`, {reply_markup: this.generateReplyMarkup()})
         console.log('LOOOOOOOOOOOOOOOL')
 
 
