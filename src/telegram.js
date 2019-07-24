@@ -6,6 +6,7 @@ const announcements = require('./files/announcements.json')
 const AddMusic = require('./flows/addMusic')
 const Voice = require('./flows/Voice')
 const AdminMe = require('./flows/adminMe')
+const CBQVoiceflow = require('./flows/cbqVoice')
 
 
 
@@ -21,23 +22,17 @@ class Bot {
     async setup(db) {
 
         this.bot.use(async (ctx, next) => {
-            console.log(`lol0`)
-
-            const {from} = ctx.update.message  || ctx.update.inline_query || ctx.update.chosen_inline_result;
-            
+            const {from} = ctx.update.message  || ctx.update.inline_query || ctx.update.chosen_inline_result || ctx.update.callback_query;
 
             console.log(ctx.updateType, ctx.updateSubTypes)
             ctx.db = db;
             ctx.bot = this;
-            // console.log(ctx)
 
-            if (ctx.updateType != 'inline_query' && ctx.updateType != 'chosen_inline_result') {
+            if (ctx.updateType != 'inline_query' && ctx.updateType != 'chosen_inline_result' && ctx.updateType != 'callback_query') {
                 if (!ctx.update.message.text === '/start' && (await db.isHe(ctx.update.message.from.id, 'user'))) {
                     ctx.reply('Register first with /start')
                     return Promise.resolve();
                 }
-
-                
             }
 
             ctx.removeMarkup = () => {
@@ -47,7 +42,7 @@ class Bot {
             }
 
             if (!this.context.users[from.id]) {
-                this.context.users[from.id] = from
+                this.context.users[from.id] = Object.assign(from, {cbqueries: {}})
             }
         
             ctx.updateSubTypes.forEach(t => {
@@ -58,6 +53,12 @@ class Bot {
             
             if (ctx.user.flow) {
                 if (await ctx.user.flow.next(ctx)) {
+                    return Promise.resolve()
+                }
+            } 
+
+            if (ctx.update.callback_query && ctx.user.cbqueries[ctx.update.callback_query.message.message_id]) {
+                if (await ctx.user.cbqueries[ctx.update.callback_query.message.message_id].next(Object.assign(ctx, {cbqflow: ctx.user.cbqueries[ctx.update.callback_query.message.message_id]}))) {
                     return Promise.resolve()
                 }
             } 
@@ -104,7 +105,7 @@ class Bot {
         })
     
         this.bot.on('audio', async (ctx) => {
-            const flow = new AddMusic(ctx)
+            const flow = new CBQVoiceflow(ctx)
             if (!(await flow.init(ctx))) {
                 ctx.reply(`Ты мне втираешь какую то дичь`)
             } else {
@@ -112,40 +113,31 @@ class Bot {
         })
 
         this.bot.on('document', async (ctx) => {
-            const flow = new AddMusic(ctx)
+            const flow = new CBQVoiceflow(ctx)
             if (!(await flow.init(ctx))) {
                 ctx.reply(`Ты мне втираешь какую то дичь`)
-            } else {
-                // ctx.reply(`OK!!!`)
             }
         })
 
         this.bot.on('voice', async (ctx) => {
-            const flow = new Voice(ctx)
-            flow.init(ctx)
+            const flow = new CBQVoiceflow(ctx)
+            if (!(await flow.init(ctx))) {
+                ctx.reply(`Ты мне втираешь какую то дичь`)
+            }
         })
 
-        // this.bot.hears('hi', (ctx) => ctx.reply('Hey there'))
         this.bot.on('text', async (ctx) => {
             let {text, from} = ctx.update.message;
 
-            
             ctx.reply('Void')
         })
 
         this.bot.on('inline_query', async (ctx) => {
             const {id, query, from} = ctx.update.inline_query;
 
-            // console.log('query===', ctx)
-            
             if (!(await db.getUser(from.id))) {
                 console.log('No user!')
                 await db.createUser(from.id, {queries: 0});
-                // ctx.answerInlineQuery([], {
-                //     is_personal: true,
-                //     switch_pm_text: "Hey, click here",
-                //     switch_pm_parameter: "new"
-                // })
             }
 
             const results = (await db.getAllowedVoicesLike(from.id, query)).slice(0,20).map((v, i) => {

@@ -119,27 +119,8 @@ class DB {
         // .run();
     }
 
-    createVoice(file_id, hash_sha256, owner_id, duration, size, active) {
-        return this.db.Voices.create({
-            file_id,
-            hash_sha256,
-            owner_id,
-            duration,
-            size,
-            active
-        })
-        // console.log('createVoice', `file_id: ${file_id}, hash_sha256: ${ hash_sha256}, owner_id: ${owner_id}, duration: ${duration}, size: ${size}, active: ${active}`)
-        // return this.db.insert(  'file_id', 'hash_sha256', 'owner_id',
-        //                         'duration', 'size', 'active')
-        // .into('voices')
-        // .values({file_id,
-        // hash_sha256,
-        // owner_id,
-        // duration,
-        // size,
-        // active})
-        // .returning('id')
-        // .run();
+    createVoice(options) { // file_id, hash_sha256, owner_id, duration, size, active, title = 'Untitled'
+        return this.db.Voices.create(options)
     }
 
     getAllowedVoicesLike(from_id, like) {
@@ -338,6 +319,28 @@ class DB {
         // .run();
     }
 
+    isPublic(voice_id) {
+        return this.db.VoicePermissions.findOne({
+            where: {
+                owner_chat_id: 0,
+                voice_id
+            }
+        })
+    }
+
+    makePublic(voice_id) {
+        return this.createPerm(voice_id, 0)
+    }
+
+    makePrivate(voice_id) {
+        return this.db.VoicePermissions.destroy({
+            where: {
+                voice_id,
+                owner_chat_id: 0
+            }
+        })
+    }
+
     getPermByUserAndVoiceId(owner_chat_id, voice_id) {
         return this.db.VoicePermissions.findAll({
             where: {
@@ -364,6 +367,15 @@ class DB {
         return this.db.VoicePermissions.destroy({
             where: {
                 voice_id
+            }
+        })
+    }
+
+    deletePermByVoiceAndUserId(voice_id, owner_chat_id) {
+        return this.db.VoicePermissions.destroy({
+            where: {
+                voice_id,
+                owner_chat_id
             }
         })
     }
