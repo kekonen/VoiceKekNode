@@ -18,7 +18,7 @@
   "production": {
     "username": "postgres",
     "password": "postgres",
-    "database": "voicekek",
+    "database": "voicekekdb",
     "host": "127.0.0.1",
     "dialect": "postgres",
     "operatorsAliases": false
